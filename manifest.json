@@ -1,0 +1,23 @@
+{
+    "manifest_version": 3,
+    "name": "Splinterlands Autobuyer",
+    "description": "Deprecated autobuyer for CardAuctionz website",
+    "version": "1.0",
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "content_scripts": [{
+        "matches": ["https://*.cardauctionz.com/*"],
+        "js": ["content-script.js"]
+    }],
+    "permissions": [
+        "activeTab",
+        "storage",
+        "scripting",
+        "tabs",
+        "debugger"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ]
+}
