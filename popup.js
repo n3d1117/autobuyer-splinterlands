@@ -1,60 +1,42 @@
 document.getElementById("splds-start").addEventListener("click", () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-
-        if (tabs.length <= 0) {
-            changeStatus('errore #1', 'red')
-            return
-        }
-
-        const tab = tabs[0];
-        if (!tab.url.startsWith('https://www.cardauctionz.com/')) {
-            console.log(tab.url)
-            changeStatus('fratm ma non stai su cardauctionz.com', 'red')
-            return
-        }
+    getTab(function(tab) {
 
         // todo check params validity
         cardId = document.getElementById('splds-card-id').value;
         buyPrice = document.getElementById('splds-buy-price').value;
 
-        chrome.tabs.sendMessage(tab.id, { type: 'start' }, function(response) {
-            console.log(response);
-        });
+        chrome.tabs.sendMessage(tab.id, { type: 'start' });
 
-        // Close popup!
-        window.close();
+        closePopup();
     });
 });
 
-/*function onGogogoClick() {
+document.getElementById("splds-stop").addEventListener("click", () => {
+    getTab(function(tab) {
+        chrome.tabs.sendMessage(tab.id, { type: 'stop' });
+        closePopup();
+    });
+});
 
-        setTimeout(function() {
-            chrome.windows.getAll({ populate: true }, function(windows) {
-                windows.forEach(function(window) {
-                    if (window.type === 'popup') {
-                        window.tabs.forEach(function(tab) {
-                            if (tab.title === 'Hive Keychain') {
-                                chrome.debugger.attach({
-                                    tabId: tab.id
-                                }, '1.0', function() {
-                                    chrome.debugger.sendCommand({
-                                        tabId: tab.id
-                                    }, "Runtime.evaluate", {
-                                        expression: "document.getElementById('no-unlock').click();"
-                                    }, function(response) {
-                                        console.log(response);
-                                    });
-                                });
+function getTab(callback) {
+    return chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+        console.log('sono qui')
+        if (tabs.length <= 0) {
+            changeStatus('non ci sta il tab fratm', 'red')
+        }
+        console.log('sono qui 2')
+        if (!tabs[0].url.startsWith('https://www.cardauctionz.com/')) {
+            changeStatus('fratm ma non stai su cardauctionz.com', 'red')
+        }
+        console.log('sono qui 3')
+        callback(tabs[0]);
+    });
+}
 
-                            }
-                        });
-                    }
-                });
-            });
-        }, 2000);
 
-    })
-}*/
+function closePopup() {
+    window.close();
+}
 
 function changeStatus(text, color) {
     document.getElementById('splds-status').innerText = text;
