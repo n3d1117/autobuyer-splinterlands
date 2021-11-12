@@ -1,5 +1,5 @@
 chrome.runtime.onMessage.addListener(
-    function(message, _sender, sendResponse) {
+    function(message, _sender, _sendResponse) {
         console.log('message received from background')
         switch (message.type) {
             case 'acceptHiveTransaction':
