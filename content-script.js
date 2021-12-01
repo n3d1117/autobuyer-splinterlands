@@ -269,7 +269,7 @@ function gogogo() {
                             isBusy = false;
                         }, 10000);
                     }, 600)
-                }, 600);
+                }, 1000);
             }, 800);
         }
     }
@@ -318,7 +318,10 @@ function clickCheckout() {
         return;
     }
     log('clicco checkout')
-    document.querySelector("#headlessui-portal-root > div > div > div > div > div > div > div > div:nth-child(5) > a").click();
+    const selector = "#headlessui-portal-root > div > div > div > div > div > div > div > div:nth-child(5) > a";
+    waitForElement(selector).then(element => {
+        element.click();
+    })
 }
 
 function acceptHiveTransaction() {
@@ -380,6 +383,26 @@ function findCards(id, name, gold, edition, callback) {
         });
     }).catch(() => {
         isBusy = false;
+    });
+}
+
+function waitForElement(selector) {
+    return new Promise(resolve => {
+        if (document.querySelector(selector)) {
+            return resolve(document.querySelector(selector));
+        }
+
+        const observer = new MutationObserver(mutations => {
+            if (document.querySelector(selector)) {
+                resolve(document.querySelector(selector));
+                observer.disconnect();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
     });
 }
 
