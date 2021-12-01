@@ -59,7 +59,6 @@ function injectDiv() {
 
                 form.innerHTML = `
                 <form class="mt-4" style="margin-bottom: 16px">
-                    <input type="text" id="splsd-autobuyer-auth-username" class="focus:ring-indigo-500 focus:border-indigo-500 block border-gray-300 rounded-md" placeholder="username">
                     <div class="sm:flex sm:max-w-md mt-4">
                         <select name="cards" id="splsd-autobuyer-card" class="focus:ring-indigo-500 focus:border-indigo-500 block border-gray-300 rounded-md">
                             <option value="" disabled selected>Scegli una carta</option>
@@ -139,129 +138,144 @@ function removeDiv() {
 }
 
 let isRunning = false;
-const intervalId = '';
-
-/*
-function disableAllFilters() {
-    if (document.getElementById("filter-edition-4") != null)
-        return;
-    document.getElementById("headlessui-disclosure-button-4").click();
-    document.getElementById("filter-edition-4").click();
-}*/
+let isBusy = false;
+let intervalId = '';
 
 function gogogo() {
-    if (!isRunning) {
-        let username = document.getElementById('splsd-autobuyer-auth-username').value
-
-        let cardId = document.getElementById('splsd-autobuyer-card').value
-        let cardName = document.getElementById('splsd-autobuyer-card').options[document.getElementById('splsd-autobuyer-card').selectedIndex].text
-        let cardEditionId = document.getElementById('splsd-autobuyer-edition').value
-        let cardEdition = document.getElementById('splsd-autobuyer-edition').options[document.getElementById('splsd-autobuyer-edition').selectedIndex].text
-        let buyPrice = document.getElementById('splsd-autobuyer-price-input').value
-        let gold = document.getElementById('splsd-autobuyer-gold-checkbox').checked
-
-        // todo validate
-
-        log('autobuyer partito con user ' + username + ', carta ' + cardName + ' (' + cardId + '), edizione ' + cardEdition + ' (' + cardEditionId + '), min buy ' + buyPrice + ', gold=' + gold, 'blue');
-        isRunning = true;
-
-        getCookie(username, function (response) {
-            response.json().then(r => {
-                let cookie = r.data
-
-                function begin() {
-                    if (!isRunning) {
-                        return;
-                    }
-                    log('inizio ricerca...');
-
-                    function proceedToCheckout() {
-                        closeAnyModal();
-                        setTimeout(() => {
-                            openShoppingCart();
-                            setTimeout(() => {
-                                clickCheckout();
-                                setTimeout(() => {
-                                    acceptHiveTransaction();
-                                }, 500)
-                            }, 500);
-                        }, 500);
-                    }
-
-                    function addToCart() {
-                        findCards(cardId, gold, cardEditionId, function (cards) {
-                            console.log(cards)
-                            cards.sort(function (a, b) {
-                                return parseFloat(a.buy_price) - parseFloat(b.buy_price);
-                            });
-
-                            waitForTag('table').then((table) => {
-                                for (const card of cards) {
-                                    const row = Array.from(table.rows).filter(value => {
-                                        return value.firstChild.textContent == card.uid
-                                    })[0];
-                                    if (row) {
-                                        row.children[7].firstChild.click();
-                                        setTimeout(proceedToCheckout, 500);
-                                        break;
-                                    }
-                                }
-                            });
-                        });
-                    }
-
-                    search(cardName)
-                    setTimeout(() => {
-                        let cardFound = false;
-                        Array.from(document.getElementsByClassName("object-fill")).forEach(async function (element) {
-                            if (element.getAttribute("alt") === cardName && element.decoding === 'async' && !cardFound) {
-                                console.log(element.getAttribute("src"))
-                                if (element.getAttribute("src").includes(cardEdition.toLowerCase())) {
-                                    if (gold && element.getAttribute("src").includes('_gold')) {
-                                        log('gold card found!');
-                                        element.parentElement.parentElement.click();
-                                        cardFound = true;
-                                        setTimeout(addToCart, 1000);
-                                    } else if (!gold && !element.getAttribute("src").includes('_gold')) {
-                                        log('card found!');
-                                        element.parentElement.parentElement.click();
-                                        cardFound = true;
-                                        setTimeout(addToCart, 1000);
-                                    }
-                                } else {
-                                    log('non c\'è l\'edizione nell\'url immagine??');
-                                }
-                            }
-                        })
-                    }, 500)
-
-                    // trova carta
-                    /*findCards(cardId, gold, function (card) {
-                        updateCart(username, cookie, JSON.stringify(card), function (response2) {
-                            response2.json().then(_ => {
-                                setTimeout(function () {
-                                    reloadCart()
-                                    openShoppingCart()
-                                    setTimeout(() => {
-                                        clickCheckout();
-                                        setTimeout(() => {
-                                            acceptHiveTransaction();
-                                        }, 500)
-                                    }, 500)
-                                }, 500);
-                            })
-                        })
-                    })*/
-                }
-
-                begin();
-                /*intervalId = setInterval(function() {
-                    begin()
-                }, 6000);*/
-
-            })
-        })
+    if (isRunning) {
+        return;
     }
+
+    let cardId = document.getElementById('splsd-autobuyer-card').value
+    let cardName = document.getElementById('splsd-autobuyer-card').options[document.getElementById('splsd-autobuyer-card').selectedIndex].text
+    let cardEditionId = document.getElementById('splsd-autobuyer-edition').value
+    let cardEdition = document.getElementById('splsd-autobuyer-edition').options[document.getElementById('splsd-autobuyer-edition').selectedIndex].text
+    let buyPrice = document.getElementById('splsd-autobuyer-price-input').value
+    let gold = document.getElementById('splsd-autobuyer-gold-checkbox').checked
+
+    isRunning = true;
+
+    // Validate
+    if (!cardId || !cardName) {
+        log('Error: no card id or name selected', 'red')
+        ferma();
+        return;
+    }
+    if (!cardEditionId || !cardEdition) {
+        log('Error: no card edition selected', 'red')
+        ferma();
+        return;
+    }
+    if (!buyPrice || !parseFloat(buyPrice)) {
+        log('Error: no min buy price specified', 'red')
+        ferma();
+        return;
+    }
+
+    log('autobuyer partito con carta ' + cardName + ' (' + cardId + '), edizione ' + cardEdition + ' (' + cardEditionId + '), min buy ' + buyPrice + ', gold=' + gold, 'blue');
+
+    function begin() {
+        if (!isRunning || isBusy) {
+            return;
+        }
+        closeAnyModal()
+        log('inizio ricerca...', 'blue');
+        isBusy = true;
+        findCards(cardId, cardName, gold, cardEditionId, function (cards) {
+            log('cerco carta con prezzo <= ' + buyPrice + '$...')
+            cards.sort(function (a, b) {
+                return parseFloat(a.buy_price) - parseFloat(b.buy_price);
+            });
+            let under = cards.filter(function (card) {
+                return parseFloat(card.buy_price) <= parseFloat(buyPrice)
+            })
+            if (under.length === 0) {
+                log('nessuna carta trovata con il prezzo specificato')
+                isBusy = false;
+            } else {
+                log('ci sono ' + under.length + ' carte con il prezzo specificato! (' + under[0].buy_price + '$)', 'green')
+                search(cardName);
+                setTimeout(function () {
+                    clickCard(under)
+                }, 500);
+            }
+        })
+
+        function clickCard(under) {
+            let cardFound = false;
+            Array.from(document.getElementsByClassName("object-fill")).forEach(async function (element) {
+                if (element.getAttribute("alt") === cardName && element.decoding === 'async' && !cardFound) {
+                    if (element.getAttribute("src").includes(cardEdition.toLowerCase())) {
+                        if (gold && element.getAttribute("src").includes('_gold')) {
+                            log('trovata! aggiungo al carrello...');
+                            element.parentElement.parentElement.click();
+                            cardFound = true;
+                            addToCart(under)
+                        } else if (!gold && !element.getAttribute("src").includes('_gold')) {
+                            log('trovata! aggiungo al carrello...');
+                            element.parentElement.parentElement.click();
+                            cardFound = true;
+                            addToCart(under)
+                        }
+                    } else {
+                        log('non c\'è l\'edizione nell\'url immagine??', 'red');
+                    }
+                }
+            })
+            if (!cardFound) {
+                log('carta non trovata', 'red')
+                isBusy = false;
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function addToCart(under) {
+            waitForTag('table').then(async (table) => {
+                let hasClicked = false;
+                for (const card of under) {
+                    const row = Array.from(table.rows).filter(value => {
+                        return value.firstChild.textContent == card.uid
+                    })[0];
+                    if (row) {
+                        while (row.children[6].textContent.toLowerCase() == 'nan') {
+                            await sleep(100);
+                        }
+                        row.children[7].firstChild.click();
+                        setTimeout(proceedToCheckout, 1000);
+                        hasClicked = true;
+                        break;
+                    }
+                }
+                if (!hasClicked) {
+                    log('non sono riuscito ad aggiungere al carrello', 'red')
+                    isBusy = false;
+                }
+            });
+        }
+
+        function proceedToCheckout() {
+            closeAnyModal();
+            setTimeout(() => {
+                openShoppingCart();
+                setTimeout(() => {
+                    clickCheckout();
+                    setTimeout(() => {
+                        acceptHiveTransaction();
+                        log('comprata! (credo), aspetto 10s...', 'green')
+                        setTimeout(() => {
+                            isBusy = false;
+                        }, 10000);
+                    }, 600)
+                }, 600);
+            }, 800);
+        }
+    }
+
+    begin();
+    intervalId = setInterval(begin, 6000);
 }
 
 function ferma() {
@@ -296,7 +310,6 @@ function closeAnyModal() {
     if (!isRunning) {
         return;
     }
-    log('chiudo finestra')
     document.elementFromPoint(10, 10).click()
 }
 
@@ -325,7 +338,7 @@ function search(name) {
 }
 
 function setSearchInput() {
-    log('setting hidden text input...')
+    //log('setting hidden text input...')
     const input = document.getElementById("search");
     const form = input.parentElement.parentElement;
     const hiddenInput = document.createElement('input');
@@ -335,20 +348,16 @@ function setSearchInput() {
     form.appendChild(hiddenInput)
 }
 
-function getCookie(username, callback) {
-    if (!isRunning) {
-        return;
-    }
-    log('prendo cookie per username ' + username + '...')
-    fetch("https://splds-cookie.herokuapp.com/cookie/?username=" + username).then(response => callback(response));
-}
-
 function getAllCards(callback) {
-    fetch('https://api2.splinterlands.com/cards/get_details').then(response => callback(response));
+    fetch('https://api2.splinterlands.com/cards/get_details')
+        .then(response => callback(response))
+        .catch(() => {
+            isBusy = false;
+        });
 }
 
-function findCards(id, gold, edition, callback) {
-    log('cerco carta ' + id + '...')
+function findCards(id, name, gold, edition, callback) {
+    log('cerco carta ' + name + '...')
     fetch("https://api2.splinterlands.com/market/for_sale_by_card?card_detail_id=" + id + "&edition=" + edition + "&gold=" + gold, {
         "headers": {
             "accept": "*/*",
@@ -369,6 +378,8 @@ function findCards(id, gold, edition, callback) {
             log('ci sono ' + data.length + ' carte')
             callback(data)
         });
+    }).catch(() => {
+        isBusy = false;
     });
 }
 

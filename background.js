@@ -25,7 +25,7 @@ function acceptHiveTransaction() {
                             chrome.debugger.sendCommand({
                                 tabId: tab.id
                             }, "Runtime.evaluate", {
-                                expression: "document.getElementById('cancel').click();"
+                                expression: "document.getElementById('proceed').click(); setTimeout(function() {document.getElementById('error-ok').click();}, 2000);"
                             }, function (response) {
                                 console.log(response);
                             });
